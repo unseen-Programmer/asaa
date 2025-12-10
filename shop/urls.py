@@ -7,8 +7,8 @@ from .views import (
 )
 
 urlpatterns = [
-    path("products/", ProductListView.as_view()),
-    path("trending/", TrendingProductListView.as_view()),
-    path("products/<slug:slug>/", ProductDetailView.as_view()),
-    path("create-admin/", create_admin_once),   # ✅ CREATE ADMIN
+    path("products/", ProductListView.as_view(), name="product-list"),
+    path("trending/", TrendingProductListView.as_view(), name="trending-products"),
+    path("products/<slug:slug>/", ProductDetailView.as_view(), name="product-detail"),
+    path("create-admin/", create_admin_once, name="create-admin"),  # ✅ TEMPORARY
 ]

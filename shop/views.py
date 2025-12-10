@@ -1,20 +1,29 @@
 from rest_framework import generics
+from django.http import JsonResponse
+from django.contrib.auth.models import User
 from .models import Product
 from .serializers import ProductSerializer
 
-# ✅ PRODUCT LIST
+
+# -------------------------------------------------------
+# ✅ PRODUCT LIST (latest products first)
+# -------------------------------------------------------
 class ProductListView(generics.ListAPIView):
     queryset = Product.objects.all().order_by("-created_at")
     serializer_class = ProductSerializer
 
 
-# ✅ TRENDING PRODUCTS
+# -------------------------------------------------------
+# ✅ TRENDING PRODUCTS (based on view_count)
+# -------------------------------------------------------
 class TrendingProductListView(generics.ListAPIView):
     queryset = Product.objects.all().order_by("-view_count")[:10]
     serializer_class = ProductSerializer
 
 
-# ✅ PRODUCT DETAIL + VIEW COUNT INCREASE
+# -------------------------------------------------------
+# ✅ PRODUCT DETAIL (increments view count)
+# -------------------------------------------------------
 class ProductDetailView(generics.RetrieveAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
@@ -28,21 +37,24 @@ class ProductDetailView(generics.RetrieveAPIView):
 
 
 # -------------------------------------------------------
-# ✅ TEMPORARY ADMIN PASSWORD RESET (RENDER FREE FIX)
+# ✅ TEMPORARY ROUTE — CREATE ADMIN ONE TIME
 # -------------------------------------------------------
+def create_admin_once(request):
+    """
+    Creates admin: username=admin, password=admin123
+    Only works once. Safe to remove after use.
+    """
+    if User.objects.filter(username="admin").exists():
+        return JsonResponse({"status": "Admin already exists"})
 
-from django.http import JsonResponse
-from django.contrib.auth.models import User
+    User.objects.create_superuser(
+        username="admin",
+        password="admin123",
+        email="admin@ane.com"
+    )
 
-def reset_admin_password(request):
-    try:
-        user = User.objects.get(username="admin")
-        user.set_password("admin123")
-        user.save()
-        return JsonResponse({
-            "status": "Password reset successful",
-            "username": "admin",
-            "new_password": "admin123"
-        })
-    except User.DoesNotExist:
-        return JsonResponse({"error": "Admin user does not exist"})
+    return JsonResponse({
+        "status": "Admin created successfully",
+        "username": "admin",
+        "password": "admin123"
+    })
