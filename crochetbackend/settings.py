@@ -18,7 +18,7 @@ ALLOWED_HOSTS = ["*",]
 # INSTALLED APPS
 # ---------------------------------------------------------
 INSTALLED_APPS = [
-    # Jazzmin MUST be first
+    # Jazzmin MUST be FIRST
     "jazzmin",
 
     # Django apps
@@ -47,7 +47,7 @@ MIDDLEWARE = [
 
     "django.middleware.security.SecurityMiddleware",
 
-    # Required for Render static hosting
+    # 🔧 Required for STATICFILES on Render
     "whitenoise.middleware.WhiteNoiseMiddleware",
 
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -123,13 +123,15 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# VERY IMPORTANT for Render (fixes Jazzmin UI broken CSS)
+# 🔧 REQUIRED for Render & Jazzmin Admin CSS
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ---------------------------------------------------------
-# MEDIA (CLOUDINARY)
+# MEDIA (CLOUDINARY CONFIG)
 # ---------------------------------------------------------
 MEDIA_URL = "/media/"
+
+# 🔧 Required for Cloudinary Uploads
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
 CLOUDINARY_STORAGE = {
@@ -139,11 +141,11 @@ CLOUDINARY_STORAGE = {
 }
 
 # ---------------------------------------------------------
-# CORS (allow frontend)
+# CORS (Allow frontend)
 # ---------------------------------------------------------
 CORS_ALLOW_ALL_ORIGINS = True
 
 # ---------------------------------------------------------
-# DEFAULTS
+# DEFAULT FIELD TYPE
 # ---------------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
