@@ -1,10 +1,10 @@
 from rest_framework import serializers
-from .models import Product, ProductImage, Category
+from .models import Product, ProductImage, Category, Address
 
 
-# -----------------------------------------
-# IMAGE SERIALIZER (Cloudinary Safe)
-# -----------------------------------------
+# ─────────────────────────────
+# IMAGE SERIALIZER
+# ─────────────────────────────
 class ProductImageSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
 
@@ -13,28 +13,24 @@ class ProductImageSerializer(serializers.ModelSerializer):
         fields = ["image"]
 
     def get_image(self, obj):
-        """
-        Cloudinary images do NOT use .name — instead they have .url.
-        This returns the full image URL.
-        """
         try:
             return obj.image.url
         except:
             return None
 
 
-# -----------------------------------------
+# ─────────────────────────────
 # CATEGORY SERIALIZER
-# -----------------------------------------
+# ─────────────────────────────
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "name"]
 
 
-# -----------------------------------------
+# ─────────────────────────────
 # PRODUCT SERIALIZER
-# -----------------------------------------
+# ─────────────────────────────
 class ProductSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
@@ -51,4 +47,22 @@ class ProductSerializer(serializers.ModelSerializer):
             "description",
             "images",
             "view_count",
+        ]
+
+
+# ─────────────────────────────
+# ADDRESS SERIALIZER
+# ─────────────────────────────
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = [
+            "id",
+            "client_id",
+            "name",
+            "phone",
+            "street",
+            "city",
+            "pincode",
+            "updated_at",
         ]
