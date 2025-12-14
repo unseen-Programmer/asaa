@@ -1,11 +1,18 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Product, ProductImage, Category, Address
+from .models import (
+    Product,
+    ProductImage,
+    Category,
+    Address,
+    Order,
+    OrderItem,
+)
 
 
-# ─────────────────────────────
+# ───────────────────────
 # IMAGE SERIALIZER
-# ─────────────────────────────
+# ───────────────────────
 class ProductImageSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
 
@@ -20,18 +27,18 @@ class ProductImageSerializer(serializers.ModelSerializer):
             return None
 
 
-# ─────────────────────────────
+# ───────────────────────
 # CATEGORY SERIALIZER
-# ─────────────────────────────
+# ───────────────────────
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "name"]
 
 
-# ─────────────────────────────
+# ───────────────────────
 # PRODUCT SERIALIZER
-# ─────────────────────────────
+# ───────────────────────
 class ProductSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
@@ -51,9 +58,9 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
 
 
-# ─────────────────────────────
+# ───────────────────────
 # ADDRESS SERIALIZER
-# ─────────────────────────────
+# ───────────────────────
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
@@ -69,9 +76,9 @@ class AddressSerializer(serializers.ModelSerializer):
         ]
 
 
-# ─────────────────────────────
+# ───────────────────────
 # USER REGISTER SERIALIZER
-# ─────────────────────────────
+# ───────────────────────
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
 
@@ -86,3 +93,36 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data["password"],
         )
         return user
+
+
+# ───────────────────────
+# ORDER ITEM SERIALIZER
+# ───────────────────────
+class OrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(
+        source="product.name", read_only=True
+    )
+
+    class Meta:
+        model = OrderItem
+        fields = ["product", "product_name", "price", "quantity"]
+
+
+# ───────────────────────
+# ORDER SERIALIZER
+# ───────────────────────
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            "id",
+            "user",
+            "address",
+            "total_amount",
+            "status",
+            "items",
+            "created_at",
+        ]
+        read_only_fields = ["status", "created_at"]

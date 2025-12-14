@@ -7,7 +7,9 @@ from .views import (
     create_admin_once,
     AddressView,
 )
+
 from .auth_views import RegisterView
+from .order_views import PlaceOrderView
 
 
 urlpatterns = [
@@ -21,6 +23,9 @@ urlpatterns = [
 
     # 🔐 Authentication
     path("auth/register/", RegisterView.as_view(), name="register"),
+
+    # 🧾 Orders
+    path("orders/place/", PlaceOrderView.as_view(), name="place-order"),
 
     # ⚙️ Admin (one-time)
     path("create-admin/", create_admin_once, name="create-admin"),

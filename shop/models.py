@@ -4,7 +4,7 @@ from cloudinary.models import CloudinaryField
 
 
 # ───────────────────────
-# CATEGORY MODEL
+# CATEGORY
 # ───────────────────────
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -15,7 +15,7 @@ class Category(models.Model):
 
 
 # ───────────────────────
-# PRODUCT MODEL
+# PRODUCT
 # ───────────────────────
 class Product(models.Model):
     name = models.CharField(max_length=200)
@@ -39,7 +39,7 @@ class Product(models.Model):
 
 
 # ───────────────────────
-# PRODUCT IMAGE MODEL
+# PRODUCT IMAGE
 # ───────────────────────
 class ProductImage(models.Model):
     product = models.ForeignKey(
@@ -47,22 +47,16 @@ class ProductImage(models.Model):
         on_delete=models.CASCADE,
         related_name="images"
     )
-
     image = CloudinaryField("image")
 
     def __str__(self):
         return f"Image for {self.product.name}"
 
 
-# ──────────────────────────────────────────────
-# ADDRESS MODEL (Checkout)
-# ──────────────────────────────────────────────
+# ───────────────────────
+# ADDRESS (Checkout)
+# ───────────────────────
 class Address(models.Model):
-    """
-    Stores address for guest users or logged-in users.
-    client_id is used for guests (UUID from frontend)
-    """
-
     client_id = models.CharField(max_length=200, db_index=True)
 
     name = models.CharField(max_length=200)
@@ -77,22 +71,20 @@ class Address(models.Model):
         return f"{self.name} - {self.city}"
 
 
-# ──────────────────────────────────────────────
-# WISHLIST MODEL (Like button – Flipkart style)
-# ──────────────────────────────────────────────
+# ───────────────────────
+# WISHLIST ❤️
+# ───────────────────────
 class Wishlist(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name="wishlist"
     )
-
     product = models.ForeignKey(
         Product,
         on_delete=models.CASCADE,
         related_name="wishlisted_by"
     )
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -100,3 +92,63 @@ class Wishlist(models.Model):
 
     def __str__(self):
         return f"{self.user.username} ❤️ {self.product.name}"
+
+
+# ───────────────────────
+# ORDER 🧾
+# ───────────────────────
+class Order(models.Model):
+    STATUS_CHOICES = (
+        ("pending", "Pending"),
+        ("paid", "Paid"),
+        ("shipped", "Shipped"),
+        ("delivered", "Delivered"),
+        ("cancelled", "Cancelled"),
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders"
+    )
+
+    address = models.ForeignKey(
+        Address,
+        on_delete=models.SET_NULL,
+        null=True
+    )
+
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="pending"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Order #{self.id} - {self.status}"
+
+
+# ───────────────────────
+# ORDER ITEM
+# ───────────────────────
+class OrderItem(models.Model):
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="items"
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        null=True
+    )
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.IntegerField(default=1)
+
+    def __str__(self):
+        return f"{self.product.name} x {self.quantity}"
