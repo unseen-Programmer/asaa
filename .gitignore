@@ -1,0 +1,22 @@
+{/* 🔐 AUTH PAGES */}
+<Route path="/login" element={<Login />} />
+<Route path="/register" element={<Register />} />
+
+{/* 🔐 PROTECTED CHECKOUT */}
+<Route
+  path="/address"
+  element={
+    <RequireAuth>
+      <AddressPage />
+    </RequireAuth>
+  }
+/>
+
+<Route
+  path="/payment"
+  element={
+    <RequireAuth>
+      <PaymentPage />
+    </RequireAuth>
+  }
+/>

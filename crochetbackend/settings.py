@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from datetime import timedelta
 
 load_dotenv()
 
@@ -11,31 +12,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ---------------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-secret-key-local")
 DEBUG = True
-
-ALLOWED_HOSTS = ["*",]
+ALLOWED_HOSTS = ["*"]
 
 # ---------------------------------------------------------
 # INSTALLED APPS
 # ---------------------------------------------------------
 INSTALLED_APPS = [
-    # Jazzmin MUST be FIRST
     "jazzmin",
 
-    # Django apps
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
 
-    # Third-party apps
     "rest_framework",
     "corsheaders",
     "cloudinary",
     "cloudinary_storage",
 
-    # Your app
     "shop",
 ]
 
@@ -44,12 +40,8 @@ INSTALLED_APPS = [
 # ---------------------------------------------------------
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
-
     "django.middleware.security.SecurityMiddleware",
-
-    # 🔧 Required for STATICFILES on Render
     "whitenoise.middleware.WhiteNoiseMiddleware",
-
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -82,7 +74,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "crochetbackend.wsgi.application"
 
 # ---------------------------------------------------------
-# DATABASE (Render PostgreSQL OR Local SQLite)
+# DATABASE
 # ---------------------------------------------------------
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -118,20 +110,16 @@ USE_I18N = True
 USE_TZ = True
 
 # ---------------------------------------------------------
-# STATIC FILES (REQUIRED FOR RENDER)
+# STATIC FILES
 # ---------------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# 🔧 REQUIRED for Render & Jazzmin Admin CSS
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ---------------------------------------------------------
-# MEDIA (CLOUDINARY CONFIG)
+# MEDIA (CLOUDINARY)
 # ---------------------------------------------------------
 MEDIA_URL = "/media/"
-
-# 🔧 Required for Cloudinary Uploads
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
 CLOUDINARY_STORAGE = {
@@ -141,11 +129,29 @@ CLOUDINARY_STORAGE = {
 }
 
 # ---------------------------------------------------------
-# CORS (Allow frontend)
+# CORS
 # ---------------------------------------------------------
 CORS_ALLOW_ALL_ORIGINS = True
 
 # ---------------------------------------------------------
-# DEFAULT FIELD TYPE
+# REST FRAMEWORK + JWT
+# ---------------------------------------------------------
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.AllowAny",
+    ),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# ---------------------------------------------------------
+# DEFAULT FIELD
 # ---------------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
