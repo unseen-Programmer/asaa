@@ -1,22 +1,19 @@
-{/* 🔐 AUTH PAGES */}
-<Route path="/login" element={<Login />} />
-<Route path="/register" element={<Register />} />
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
 
-{/* 🔐 PROTECTED CHECKOUT */}
-<Route
-  path="/address"
-  element={
-    <RequireAuth>
-      <AddressPage />
-    </RequireAuth>
-  }
-/>
+# Django local database
+db.sqlite3
+*.sqlite3
 
-<Route
-  path="/payment"
-  element={
-    <RequireAuth>
-      <PaymentPage />
-    </RequireAuth>
-  }
-/>
+# Virtual environment
+venv/
+.env
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
