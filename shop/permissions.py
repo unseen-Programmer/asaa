@@ -14,9 +14,12 @@ class IsAuthenticatedWithAuth0(BasePermission):
             payload = verify_auth0_token(token)
 
             # Attach Auth0 user info to request
-            request.auth = payload               # DRF standard
+            request.auth = payload  # DRF standard
             request.auth0_user = payload
             request.auth0_user_id = payload.get("sub")
+
+            if not request.auth0_user_id:
+                raise AuthenticationFailed("Invalid Auth0 token")
 
             return True
 

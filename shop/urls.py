@@ -5,11 +5,10 @@ from .views import (
     TrendingProductListView,
     ProductDetailView,
     AddressView,
+    WishlistView,
+    PlaceOrderView,
+    OrderHistoryView,
 )
-
-from .auth_views import RegisterView
-from .order_views import PlaceOrderView
-
 
 urlpatterns = [
     # 🛒 Products (PUBLIC)
@@ -17,12 +16,13 @@ urlpatterns = [
     path("trending/", TrendingProductListView.as_view(), name="trending-products"),
     path("products/<slug:slug>/", ProductDetailView.as_view(), name="product-detail"),
 
-    # 📍 Address (PROTECTED - Auth0)
+    # 📍 Address (PROTECTED)
     path("addresses/", AddressView.as_view(), name="address"),
 
-    # 🔐 Authentication
-    path("auth/register/", RegisterView.as_view(), name="register"),
+    # ❤️ Wishlist (PROTECTED)
+    path("wishlist/", WishlistView.as_view(), name="wishlist"),
 
-    # 🧾 Orders (PROTECTED - Auth0)
+    # 🧾 Orders (PROTECTED)
     path("orders/place/", PlaceOrderView.as_view(), name="place-order"),
+    path("orders/history/", OrderHistoryView.as_view(), name="order-history"),
 ]

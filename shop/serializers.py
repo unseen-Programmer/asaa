@@ -12,7 +12,7 @@ from .models import (
 )
 
 # ───────────────────────
-# IMAGE SERIALIZER
+# PRODUCT IMAGE SERIALIZER
 # ───────────────────────
 class ProductImageSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
@@ -75,6 +75,7 @@ class AddressSerializer(serializers.ModelSerializer):
             "pincode",
             "updated_at",
         ]
+        read_only_fields = ["updated_at"]
 
 
 # ───────────────────────
@@ -97,14 +98,18 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 # ───────────────────────
-# WISHLIST ❤️ (FIXES RENDER ERROR)
+# WISHLIST ❤️ SERIALIZER
 # ───────────────────────
 class WishlistSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
 
     class Meta:
         model = Wishlist
-        fields = ["id", "product", "created_at"]
+        fields = [
+            "id",
+            "product",
+            "created_at",
+        ]
 
 
 # ───────────────────────
@@ -112,12 +117,18 @@ class WishlistSerializer(serializers.ModelSerializer):
 # ───────────────────────
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(
-        source="product.name", read_only=True
+        source="product.name",
+        read_only=True
     )
 
     class Meta:
         model = OrderItem
-        fields = ["product", "product_name", "price", "quantity"]
+        fields = [
+            "product",
+            "product_name",
+            "price",
+            "quantity",
+        ]
 
 
 # ───────────────────────
@@ -137,4 +148,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "items",
             "created_at",
         ]
-        read_only_fields = ["status", "created_at"]
+        read_only_fields = [
+            "status",
+            "created_at",
+        ]

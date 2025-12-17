@@ -50,9 +50,6 @@ class ProductDetailView(generics.RetrieveAPIView):
 # 📍 ADDRESS (AUTH0 USER)
 # ─────────────────────────────
 class AddressView(generics.ListCreateAPIView):
-    """
-    Each Auth0 user can create and view ONLY their own addresses
-    """
     serializer_class = AddressSerializer
     permission_classes = [IsAuthenticatedWithAuth0]
 
@@ -68,17 +65,18 @@ class AddressView(generics.ListCreateAPIView):
 
 
 # ─────────────────────────────
-# ❤️ WISHLIST
+# ❤️ WISHLIST (TOGGLE + LIST)
 # ─────────────────────────────
 class WishlistView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
 
     def get(self, request):
-        items = Wishlist.objects.filter(
+        wishlist = Wishlist.objects.filter(
             auth0_user_id=request.auth0_user_id
-        )
-        serializer = WishlistSerializer(items, many=True)
-        return Response(serializer.data)
+        ).select_related("product")
+
+        serializer = WishlistSerializer(wishlist, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         product_id = request.data.get("product_id")
@@ -89,34 +87,25 @@ class WishlistView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        wishlist, created = Wishlist.objects.get_or_create(
+        wishlist_item = Wishlist.objects.filter(
             auth0_user_id=request.auth0_user_id,
             product_id=product_id
-        )
+        ).first()
 
-        if not created:
-            return Response(
-                {"detail": "Already in wishlist"},
-                status=status.HTTP_200_OK
+        if wishlist_item:
+            wishlist_item.delete()
+        else:
+            Wishlist.objects.create(
+                auth0_user_id=request.auth0_user_id,
+                product_id=product_id
             )
 
-        return Response(
-            {"detail": "Added to wishlist"},
-            status=status.HTTP_201_CREATED
-        )
+        wishlist = Wishlist.objects.filter(
+            auth0_user_id=request.auth0_user_id
+        ).select_related("product")
 
-    def delete(self, request):
-        product_id = request.data.get("product_id")
-
-        Wishlist.objects.filter(
-            auth0_user_id=request.auth0_user_id,
-            product_id=product_id
-        ).delete()
-
-        return Response(
-            {"detail": "Removed from wishlist"},
-            status=status.HTTP_204_NO_CONTENT
-        )
+        serializer = WishlistSerializer(wishlist, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # ─────────────────────────────
