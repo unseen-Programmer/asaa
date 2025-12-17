@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+
 from .models import (
     Product,
     ProductImage,
@@ -7,8 +8,8 @@ from .models import (
     Address,
     Order,
     OrderItem,
+    Wishlist,
 )
-
 
 # ───────────────────────
 # IMAGE SERIALIZER
@@ -23,7 +24,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         try:
             return obj.image.url
-        except:
+        except Exception:
             return None
 
 
@@ -96,6 +97,17 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 # ───────────────────────
+# WISHLIST ❤️ (FIXES RENDER ERROR)
+# ───────────────────────
+class WishlistSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
+
+    class Meta:
+        model = Wishlist
+        fields = ["id", "product", "created_at"]
+
+
+# ───────────────────────
 # ORDER ITEM SERIALIZER
 # ───────────────────────
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -112,7 +124,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 # ORDER SERIALIZER
 # ───────────────────────
 class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True)
+    items = OrderItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = Order
