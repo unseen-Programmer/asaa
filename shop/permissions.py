@@ -3,7 +3,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from .utils.auth0 import get_token_from_header, verify_auth0_token
 
 
-class IsAuth0Authenticated(BasePermission):
+class IsAuthenticatedWithAuth0(BasePermission):
     """
     Allows access only to requests with a valid Auth0 JWT.
     """
@@ -14,6 +14,7 @@ class IsAuth0Authenticated(BasePermission):
             payload = verify_auth0_token(token)
 
             # Attach Auth0 user info to request
+            request.auth = payload               # DRF standard
             request.auth0_user = payload
             request.auth0_user_id = payload.get("sub")
 
