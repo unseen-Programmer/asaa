@@ -1,11 +1,9 @@
 from django.db import models
-from django.contrib.auth.models import User
 from cloudinary.models import CloudinaryField
 
-
-# ───────────────────────
+# ─────────────────────────────
 # CATEGORY
-# ───────────────────────
+# ─────────────────────────────
 class Category(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
@@ -14,9 +12,9 @@ class Category(models.Model):
         return self.name
 
 
-# ───────────────────────
+# ─────────────────────────────
 # PRODUCT
-# ───────────────────────
+# ─────────────────────────────
 class Product(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -28,19 +26,19 @@ class Product(models.Model):
     )
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    stock = models.IntegerField(default=0)
+    stock = models.PositiveIntegerField(default=0)
     description = models.TextField()
 
     created_at = models.DateTimeField(auto_now_add=True)
-    view_count = models.IntegerField(default=0)
+    view_count = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return self.name
 
 
-# ───────────────────────
+# ─────────────────────────────
 # PRODUCT IMAGE
-# ───────────────────────
+# ─────────────────────────────
 class ProductImage(models.Model):
     product = models.ForeignKey(
         Product,
@@ -53,11 +51,14 @@ class ProductImage(models.Model):
         return f"Image for {self.product.name}"
 
 
-# ───────────────────────
-# ADDRESS (Checkout)
-# ───────────────────────
+# ─────────────────────────────
+# ADDRESS (Auth0 User)
+# ─────────────────────────────
 class Address(models.Model):
-    client_id = models.CharField(max_length=200, db_index=True)
+    auth0_user_id = models.CharField(
+        max_length=255,
+        db_index=True
+    )
 
     name = models.CharField(max_length=200)
     phone = models.CharField(max_length=20)
@@ -71,32 +72,33 @@ class Address(models.Model):
         return f"{self.name} - {self.city}"
 
 
-# ───────────────────────
-# WISHLIST ❤️
-# ───────────────────────
+# ─────────────────────────────
+# WISHLIST ❤️ (Auth0)
+# ─────────────────────────────
 class Wishlist(models.Model):
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="wishlist"
+    auth0_user_id = models.CharField(
+        max_length=255,
+        db_index=True
     )
+
     product = models.ForeignKey(
         Product,
         on_delete=models.CASCADE,
         related_name="wishlisted_by"
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("user", "product")
+        unique_together = ("auth0_user_id", "product")
 
     def __str__(self):
-        return f"{self.user.username} ❤️ {self.product.name}"
+        return f"{self.auth0_user_id} ❤️ {self.product.name}"
 
 
-# ───────────────────────
-# ORDER 🧾
-# ───────────────────────
+# ─────────────────────────────
+# ORDER 🧾 (Auth0)
+# ─────────────────────────────
 class Order(models.Model):
     STATUS_CHOICES = (
         ("pending", "Pending"),
@@ -106,18 +108,16 @@ class Order(models.Model):
         ("cancelled", "Cancelled"),
     )
 
-    user = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="orders"
+    auth0_user_id = models.CharField(
+        max_length=255,
+        db_index=True
     )
 
     address = models.ForeignKey(
         Address,
         on_delete=models.SET_NULL,
-        null=True
+        null=True,
+        blank=True
     )
 
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -133,22 +133,24 @@ class Order(models.Model):
         return f"Order #{self.id} - {self.status}"
 
 
-# ───────────────────────
+# ─────────────────────────────
 # ORDER ITEM
-# ───────────────────────
+# ─────────────────────────────
 class OrderItem(models.Model):
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
         related_name="items"
     )
+
     product = models.ForeignKey(
         Product,
         on_delete=models.SET_NULL,
         null=True
     )
+
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    quantity = models.IntegerField(default=1)
+    quantity = models.PositiveIntegerField(default=1)
 
     def __str__(self):
-        return f"{self.product.name} x {self.quantity}"
+        return f"{self.product} x {self.quantity}"

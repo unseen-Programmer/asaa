@@ -4,29 +4,25 @@ from .views import (
     ProductListView,
     TrendingProductListView,
     ProductDetailView,
-    create_admin_once,
     AddressView,
+    create_admin_once,
 )
 
-from .auth_views import RegisterView
 from .order_views import PlaceOrderView
 
 
 urlpatterns = [
-    # 🛒 Products
+    # 🛒 PRODUCTS (PUBLIC)
     path("products/", ProductListView.as_view(), name="product-list"),
     path("trending/", TrendingProductListView.as_view(), name="trending-products"),
     path("products/<slug:slug>/", ProductDetailView.as_view(), name="product-detail"),
 
-    # 📍 Address
+    # 📍 ADDRESS (PROTECTED – AUTH0)
     path("addresses/", AddressView.as_view(), name="address"),
 
-    # 🔐 Authentication
-    path("auth/register/", RegisterView.as_view(), name="register"),
-
-    # 🧾 Orders
+    # 🧾 ORDERS (PROTECTED – AUTH0)
     path("orders/place/", PlaceOrderView.as_view(), name="place-order"),
 
-    # ⚙️ Admin (one-time)
+    # ⚙️ ADMIN (DEV ONLY)
     path("create-admin/", create_admin_once, name="create-admin"),
 ]

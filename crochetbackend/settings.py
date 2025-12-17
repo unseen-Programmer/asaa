@@ -3,6 +3,9 @@ import os
 from dotenv import load_dotenv
 from datetime import timedelta
 
+# ---------------------------------------------------------
+# LOAD ENV
+# ---------------------------------------------------------
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -10,9 +13,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ---------------------------------------------------------
 # SECURITY
 # ---------------------------------------------------------
-SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-secret-key-local")
-DEBUG = True
+SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-dev-key")
+DEBUG = os.getenv("DEBUG", "True") == "True"
+
 ALLOWED_HOSTS = ["*"]
+
+# ---------------------------------------------------------
+# AUTH0 CONFIG (VERY IMPORTANT)
+# ---------------------------------------------------------
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
+AUTH0_ISSUER = f"https://{AUTH0_DOMAIN}/"
 
 # ---------------------------------------------------------
 # INSTALLED APPS
@@ -29,6 +40,7 @@ INSTALLED_APPS = [
 
     "rest_framework",
     "corsheaders",
+
     "cloudinary",
     "cloudinary_storage",
 
@@ -120,6 +132,7 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 # MEDIA (CLOUDINARY)
 # ---------------------------------------------------------
 MEDIA_URL = "/media/"
+
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
 CLOUDINARY_STORAGE = {
@@ -134,24 +147,18 @@ CLOUDINARY_STORAGE = {
 CORS_ALLOW_ALL_ORIGINS = True
 
 # ---------------------------------------------------------
-# REST FRAMEWORK + JWT
+# REST FRAMEWORK (AUTH0 JWT)
 # ---------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "shop.authentication.Auth0JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.AllowAny",
     ),
 }
 
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
-    "AUTH_HEADER_TYPES": ("Bearer",),
-}
-
 # ---------------------------------------------------------
-# DEFAULT FIELD
+# DEFAULT PRIMARY KEY
 # ---------------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
