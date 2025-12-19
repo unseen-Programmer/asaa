@@ -46,7 +46,7 @@ class Product(models.Model):
 
 
 # ─────────────────────────────
-# PRODUCT IMAGE (FAST LOOKUP)
+# PRODUCT IMAGE
 # ─────────────────────────────
 class ProductImage(models.Model):
     product = models.ForeignKey(
@@ -58,11 +58,11 @@ class ProductImage(models.Model):
     image = CloudinaryField("image")
 
     def __str__(self):
-        return f"{self.product_id}"
+        return f"Image({self.product_id})"
 
 
 # ─────────────────────────────
-# ADDRESS (Auth0 - STRING BASED)
+# ADDRESS (Auth0 USER)
 # ─────────────────────────────
 class Address(models.Model):
     auth0_user_id = models.CharField(
@@ -79,11 +79,11 @@ class Address(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.city})"
 
 
 # ─────────────────────────────
-# WISHLIST (NO EXTRA JOIN)
+# WISHLIST
 # ─────────────────────────────
 class Wishlist(models.Model):
     auth0_user_id = models.CharField(
@@ -105,9 +105,12 @@ class Wishlist(models.Model):
             models.Index(fields=["auth0_user_id", "product"]),
         ]
 
+    def __str__(self):
+        return f"{self.auth0_user_id} ❤️ {self.product_id}"
+
 
 # ─────────────────────────────
-# ORDER (OPTIMIZED FOR CHECKOUT)
+# ORDER
 # ─────────────────────────────
 class Order(models.Model):
     STATUS_CHOICES = (
@@ -135,7 +138,10 @@ class Order(models.Model):
         blank=True
     )
 
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    total_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
 
     payment_method = models.CharField(
         max_length=20,
@@ -143,25 +149,25 @@ class Order(models.Model):
         default="razorpay"
     )
 
-    # Razorpay (indexed for quick verification)
+    # ── Razorpay fields ──
     razorpay_order_id = models.CharField(
         max_length=100,
-        blank=True,
         null=True,
+        blank=True,
         unique=True,
         db_index=True
     )
 
     razorpay_payment_id = models.CharField(
         max_length=100,
-        blank=True,
-        null=True
+        null=True,
+        blank=True
     )
 
     razorpay_signature = models.CharField(
         max_length=255,
-        blank=True,
-        null=True
+        null=True,
+        blank=True
     )
 
     status = models.CharField(
@@ -176,9 +182,12 @@ class Order(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+    def __str__(self):
+        return f"Order #{self.id} ({self.status})"
+
 
 # ─────────────────────────────
-# ORDER ITEM (LIGHTWEIGHT)
+# ORDER ITEM
 # ─────────────────────────────
 class OrderItem(models.Model):
     order = models.ForeignKey(
@@ -196,3 +205,6 @@ class OrderItem(models.Model):
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)
+
+    def __str__(self):
+        return f"{self.product_id} × {self.quantity}"
