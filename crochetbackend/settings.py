@@ -1,25 +1,27 @@
 from pathlib import Path
 import os
-from dotenv import load_dotenv
-from datetime import timedelta
 
 # ---------------------------------------------------------
-# LOAD ENV
+# BASE DIR
 # ---------------------------------------------------------
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------
 # SECURITY
 # ---------------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-dev-key")
-DEBUG = os.getenv("DEBUG", "True") == "True"
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = ["*"]
 
 # ---------------------------------------------------------
-# AUTH0 CONFIG (VERY IMPORTANT)
+# RAZORPAY
+# ---------------------------------------------------------
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
+
+# ---------------------------------------------------------
+# AUTH0 CONFIG
 # ---------------------------------------------------------
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
@@ -54,6 +56,7 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -62,7 +65,11 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# ---------------------------------------------------------
+# URL / WSGI
+# ---------------------------------------------------------
 ROOT_URLCONF = "crochetbackend.urls"
+WSGI_APPLICATION = "crochetbackend.wsgi.application"
 
 # ---------------------------------------------------------
 # TEMPLATES
@@ -83,8 +90,6 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "crochetbackend.wsgi.application"
-
 # ---------------------------------------------------------
 # DATABASE
 # ---------------------------------------------------------
@@ -104,7 +109,7 @@ else:
     }
 
 # ---------------------------------------------------------
-# PASSWORD VALIDATION
+# PASSWORD VALIDATORS
 # ---------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -122,18 +127,23 @@ USE_I18N = True
 USE_TZ = True
 
 # ---------------------------------------------------------
-# STATIC FILES
+# STATIC FILES (WHITENOISE)
 # ---------------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+STATICFILES_STORAGE = (
+    "whitenoise.storage.CompressedManifestStaticFilesStorage"
+)
 
 # ---------------------------------------------------------
-# MEDIA (CLOUDINARY)
+# MEDIA FILES (CLOUDINARY)
 # ---------------------------------------------------------
 MEDIA_URL = "/media/"
 
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+DEFAULT_FILE_STORAGE = (
+    "cloudinary_storage.storage.MediaCloudinaryStorage"
+)
 
 CLOUDINARY_STORAGE = {
     "CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -147,7 +157,7 @@ CLOUDINARY_STORAGE = {
 CORS_ALLOW_ALL_ORIGINS = True
 
 # ---------------------------------------------------------
-# REST FRAMEWORK (AUTH0 JWT)
+# DJANGO REST FRAMEWORK (AUTH0)
 # ---------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (

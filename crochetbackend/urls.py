@@ -19,13 +19,13 @@ def home(request):
 
 
 urlpatterns = [
-    # Home
+    # 🏠 Home
     path("", home),
 
-    # Admin
+    # 🛠 Admin
     path("admin/", admin.site.urls),
 
-    # App APIs
+    # 🧩 App APIs (Products, Orders, Razorpay, etc.)
     path("api/", include("shop.urls")),
 
     # 🔐 JWT Authentication

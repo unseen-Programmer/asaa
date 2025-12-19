@@ -1,12 +1,16 @@
 from django.db import models
 from cloudinary.models import CloudinaryField
 
+
 # ─────────────────────────────
 # CATEGORY
 # ─────────────────────────────
 class Category(models.Model):
     name = models.CharField(max_length=100)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, db_index=True)
+
+    class Meta:
+        ordering = ["name"]
 
     def __str__(self):
         return self.name
@@ -17,42 +21,48 @@ class Category(models.Model):
 # ─────────────────────────────
 class Product(models.Model):
     name = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, db_index=True)
 
     category = models.ForeignKey(
         Category,
         on_delete=models.CASCADE,
-        related_name="products"
+        related_name="products",
+        db_index=True
     )
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    stock = models.PositiveIntegerField(default=0)
+    stock = models.PositiveIntegerField(default=0, db_index=True)
+
     description = models.TextField()
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     view_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.name
 
 
 # ─────────────────────────────
-# PRODUCT IMAGE
+# PRODUCT IMAGE (FAST LOOKUP)
 # ─────────────────────────────
 class ProductImage(models.Model):
     product = models.ForeignKey(
         Product,
         on_delete=models.CASCADE,
-        related_name="images"
+        related_name="images",
+        db_index=True
     )
     image = CloudinaryField("image")
 
     def __str__(self):
-        return f"Image for {self.product.name}"
+        return f"{self.product_id}"
 
 
 # ─────────────────────────────
-# ADDRESS (Auth0 User)
+# ADDRESS (Auth0 - STRING BASED)
 # ─────────────────────────────
 class Address(models.Model):
     auth0_user_id = models.CharField(
@@ -63,17 +73,17 @@ class Address(models.Model):
     name = models.CharField(max_length=200)
     phone = models.CharField(max_length=20)
     street = models.CharField(max_length=300)
-    city = models.CharField(max_length=100)
-    pincode = models.CharField(max_length=20)
+    city = models.CharField(max_length=100, db_index=True)
+    pincode = models.CharField(max_length=20, db_index=True)
 
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name} - {self.city}"
+        return self.name
 
 
 # ─────────────────────────────
-# WISHLIST ❤️ (Auth0)
+# WISHLIST (NO EXTRA JOIN)
 # ─────────────────────────────
 class Wishlist(models.Model):
     auth0_user_id = models.CharField(
@@ -84,20 +94,20 @@ class Wishlist(models.Model):
     product = models.ForeignKey(
         Product,
         on_delete=models.CASCADE,
-        related_name="wishlisted_by"
+        db_index=True
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ("auth0_user_id", "product")
-
-    def __str__(self):
-        return f"{self.auth0_user_id} ❤️ {self.product.name}"
+        indexes = [
+            models.Index(fields=["auth0_user_id", "product"]),
+        ]
 
 
 # ─────────────────────────────
-# ORDER 🧾 (Auth0)
+# ORDER (OPTIMIZED FOR CHECKOUT)
 # ─────────────────────────────
 class Order(models.Model):
     STATUS_CHOICES = (
@@ -106,6 +116,11 @@ class Order(models.Model):
         ("shipped", "Shipped"),
         ("delivered", "Delivered"),
         ("cancelled", "Cancelled"),
+    )
+
+    PAYMENT_METHOD_CHOICES = (
+        ("razorpay", "Razorpay"),
+        ("cod", "Cash on Delivery"),
     )
 
     auth0_user_id = models.CharField(
@@ -122,26 +137,55 @@ class Order(models.Model):
 
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
 
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default="razorpay"
+    )
+
+    # Razorpay (indexed for quick verification)
+    razorpay_order_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True
+    )
+
+    razorpay_payment_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True
+    )
+
+    razorpay_signature = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
+
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default="pending"
+        default="pending",
+        db_index=True
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    def __str__(self):
-        return f"Order #{self.id} - {self.status}"
+    class Meta:
+        ordering = ["-created_at"]
 
 
 # ─────────────────────────────
-# ORDER ITEM
+# ORDER ITEM (LIGHTWEIGHT)
 # ─────────────────────────────
 class OrderItem(models.Model):
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
-        related_name="items"
+        related_name="items",
+        db_index=True
     )
 
     product = models.ForeignKey(
@@ -152,6 +196,3 @@ class OrderItem(models.Model):
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)
-
-    def __str__(self):
-        return f"{self.product} x {self.quantity}"
