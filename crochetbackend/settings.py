@@ -15,8 +15,12 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS",
-    "localhost,127.0.0.1"
+    "localhost,127.0.0.1,asaa-0p6p.onrender.com"
 ).split(",")
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://asaa-0p6p.onrender.com",
+]
 
 # ---------------------------------------------------------
 # RAZORPAY
@@ -160,7 +164,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 # ---------------------------------------------------------
-# DJANGO REST FRAMEWORK (AUTH0)
+# DJANGO REST FRAMEWORK
 # ---------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -172,7 +176,7 @@ REST_FRAMEWORK = {
 }
 
 # ---------------------------------------------------------
-# PROXY / HTTPS
+# PROXY / HTTPS (RENDER FIX)
 # ---------------------------------------------------------
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
