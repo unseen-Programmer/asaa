@@ -1,11 +1,8 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
-
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
+from django.conf import settings
+from django.conf.urls.static import static
 
 
 def home(request):
@@ -13,22 +10,23 @@ def home(request):
         "status": "ANE Crochet API Running Successfully 🚀",
         "admin": "/admin/",
         "products": "/api/products/",
-        "login": "/api/auth/login/",
-        "register": "/api/auth/register/",
+        "addresses": "/api/addresses/",
+        "orders": "/api/orders/",
+        "payments": "/api/payments/",
     })
 
 
 urlpatterns = [
-    # 🏠 Home
+    # 🏠 Health check
     path("", home),
 
-    # 🛠 Admin
+    # 👑 Admin
     path("admin/", admin.site.urls),
 
-    # 🧩 App APIs (Products, Orders, Razorpay, etc.)
+    # 🧩 App APIs
     path("api/", include("shop.urls")),
-
-    # 🔐 JWT Authentication
-    path("api/auth/login/", TokenObtainPairView.as_view(), name="jwt-login"),
-    path("api/auth/refresh/", TokenRefreshView.as_view(), name="jwt-refresh"),
 ]
+
+# ✅ Serve media/static in development only
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

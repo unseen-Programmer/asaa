@@ -10,15 +10,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY
 # ---------------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-dev-key")
-DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["*"]
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS",
+    "localhost,127.0.0.1"
+).split(",")
 
 # ---------------------------------------------------------
 # RAZORPAY
 # ---------------------------------------------------------
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
+RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET")
 
 # ---------------------------------------------------------
 # AUTH0 CONFIG
@@ -43,6 +48,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
 
+    # Cloudinary
     "cloudinary",
     "cloudinary_storage",
 
@@ -98,7 +104,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL:
     import dj_database_url
     DATABASES = {
-        "default": dj_database_url.parse(DATABASE_URL)
+        "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
 else:
     DATABASES = {
@@ -132,18 +138,14 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-STATICFILES_STORAGE = (
-    "whitenoise.storage.CompressedManifestStaticFilesStorage"
-)
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ---------------------------------------------------------
 # MEDIA FILES (CLOUDINARY)
 # ---------------------------------------------------------
 MEDIA_URL = "/media/"
 
-DEFAULT_FILE_STORAGE = (
-    "cloudinary_storage.storage.MediaCloudinaryStorage"
-)
+DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
 CLOUDINARY_STORAGE = {
     "CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -155,6 +157,7 @@ CLOUDINARY_STORAGE = {
 # CORS
 # ---------------------------------------------------------
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 # ---------------------------------------------------------
 # DJANGO REST FRAMEWORK (AUTH0)
@@ -167,6 +170,11 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.AllowAny",
     ),
 }
+
+# ---------------------------------------------------------
+# PROXY / HTTPS
+# ---------------------------------------------------------
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # ---------------------------------------------------------
 # DEFAULT PRIMARY KEY

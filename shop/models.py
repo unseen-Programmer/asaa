@@ -11,6 +11,7 @@ class Category(models.Model):
 
     class Meta:
         ordering = ["name"]
+        verbose_name_plural = "Categories"
 
     def __str__(self):
         return self.name
@@ -33,7 +34,7 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.PositiveIntegerField(default=0, db_index=True)
 
-    description = models.TextField()
+    description = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     view_count = models.PositiveIntegerField(default=0)
@@ -55,10 +56,11 @@ class ProductImage(models.Model):
         related_name="images",
         db_index=True
     )
+
     image = CloudinaryField("image")
 
     def __str__(self):
-        return f"Image({self.product_id})"
+        return f"ProductImage ({self.product.id})"
 
 
 # ─────────────────────────────
@@ -79,7 +81,7 @@ class Address(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name} ({self.city})"
+        return f"{self.name} - {self.city}"
 
 
 # ─────────────────────────────
@@ -94,6 +96,7 @@ class Wishlist(models.Model):
     product = models.ForeignKey(
         Product,
         on_delete=models.CASCADE,
+        related_name="wishlisted_by",
         db_index=True
     )
 
@@ -106,25 +109,25 @@ class Wishlist(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.auth0_user_id} ❤️ {self.product_id}"
+        return f"{self.auth0_user_id} ❤️ {self.product.name}"
 
 
 # ─────────────────────────────
 # ORDER
 # ─────────────────────────────
 class Order(models.Model):
-    STATUS_CHOICES = (
+    STATUS_CHOICES = [
         ("pending", "Pending"),
         ("paid", "Paid"),
         ("shipped", "Shipped"),
         ("delivered", "Delivered"),
         ("cancelled", "Cancelled"),
-    )
+    ]
 
-    PAYMENT_METHOD_CHOICES = (
+    PAYMENT_METHOD_CHOICES = [
         ("razorpay", "Razorpay"),
         ("cod", "Cash on Delivery"),
-    )
+    ]
 
     auth0_user_id = models.CharField(
         max_length=255,
@@ -149,7 +152,7 @@ class Order(models.Model):
         default="razorpay"
     )
 
-    # ── Razorpay fields ──
+    # Razorpay fields
     razorpay_order_id = models.CharField(
         max_length=100,
         null=True,
@@ -183,7 +186,7 @@ class Order(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"Order #{self.id} ({self.status})"
+        return f"Order #{self.id} - {self.status}"
 
 
 # ─────────────────────────────
@@ -207,4 +210,4 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField(default=1)
 
     def __str__(self):
-        return f"{self.product_id} × {self.quantity}"
+        return f"{self.product.name if self.product else 'Deleted'} × {self.quantity}"

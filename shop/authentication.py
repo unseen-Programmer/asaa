@@ -1,48 +1,90 @@
-from jose import jwt
+# shop/authentication.py
+
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from jose import jwt
+from jose.exceptions import JWTError, ExpiredSignatureError, JWTClaimsError
 import requests
-import os
+from django.contrib.auth.models import User
+from django.conf import settings
+from functools import lru_cache
 
-AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
-API_AUDIENCE = os.getenv("AUTH0_API_AUDIENCE")
-ALGORITHMS = ["RS256"]
+
+@lru_cache()
+def get_jwks():
+    """Cache JWKS to avoid fetching on every request"""
+    jwks_url = f"https://{settings.AUTH0_DOMAIN}/.well-known/jwks.json"
+    response = requests.get(jwks_url, timeout=5)
+    response.raise_for_status()
+    return response.json()
+
 
 class Auth0JWTAuthentication(BaseAuthentication):
     def authenticate(self, request):
-        auth = request.headers.get("Authorization", None)
-        if not auth:
-            return None
+        auth_header = request.META.get("HTTP_AUTHORIZATION")
 
-        token = auth.split(" ")[1]
+        if not auth_header:
+            return None  # DRF will handle missing auth
+
+        parts = auth_header.split()
+
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            raise AuthenticationFailed(
+                "Invalid Authorization header format. Use 'Bearer <token>'"
+            )
+
+        token = parts[1]
 
         try:
-            jwks = requests.get(
-                f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
-            ).json()
+            jwks = get_jwks()
 
             unverified_header = jwt.get_unverified_header(token)
 
-            rsa_key = {}
-            for key in jwks["keys"]:
-                if key["kid"] == unverified_header["kid"]:
-                    rsa_key = {
+            rsa_key = next(
+                (
+                    {
                         "kty": key["kty"],
                         "kid": key["kid"],
                         "use": key["use"],
                         "n": key["n"],
                         "e": key["e"],
                     }
+                    for key in jwks["keys"]
+                    if key["kid"] == unverified_header["kid"]
+                ),
+                None,
+            )
+
+            if not rsa_key:
+                raise AuthenticationFailed("No matching JWKS key found")
 
             payload = jwt.decode(
                 token,
                 rsa_key,
-                algorithms=ALGORITHMS,
-                audience=API_AUDIENCE,
-                issuer=f"https://{AUTH0_DOMAIN}/",
+                algorithms=["RS256"],
+                audience=settings.AUTH0_AUDIENCE,
+                issuer=f"https://{settings.AUTH0_DOMAIN}/",  # MUST end with /
             )
 
-            return (payload, None)
+            user_id = payload.get("sub")
+            if not user_id:
+                raise AuthenticationFailed("Token missing 'sub' claim")
 
+            user, _ = User.objects.get_or_create(
+                username=user_id,
+                defaults={"email": payload.get("email", "")},
+            )
+
+            return (user, token)
+
+        except ExpiredSignatureError:
+            raise AuthenticationFailed("Token has expired")
+        except JWTClaimsError as e:
+            raise AuthenticationFailed(f"Invalid claims: {str(e)}")
+        except JWTError as e:
+            raise AuthenticationFailed(f"Invalid token: {str(e)}")
         except Exception:
-            raise AuthenticationFailed("Invalid token")
+            raise AuthenticationFailed("Unable to validate token")
+
+    def authenticate_header(self, request):
+        return "Bearer"
