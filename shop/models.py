@@ -33,7 +33,6 @@ class Product(models.Model):
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.PositiveIntegerField(default=0, db_index=True)
-
     description = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -56,7 +55,6 @@ class ProductImage(models.Model):
         related_name="images",
         db_index=True
     )
-
     image = CloudinaryField("image")
 
     def __str__(self):
@@ -64,7 +62,7 @@ class ProductImage(models.Model):
 
 
 # ─────────────────────────────
-# ADDRESS (Auth0 USER)
+# ADDRESS
 # ─────────────────────────────
 class Address(models.Model):
     ADDRESS_TYPE_CHOICES = (
@@ -76,7 +74,6 @@ class Address(models.Model):
 
     name = models.CharField(max_length=200)
     phone = models.CharField(max_length=20)
-
     street = models.CharField(max_length=300)
     city = models.CharField(max_length=100)
     pincode = models.CharField(max_length=20)
@@ -93,29 +90,22 @@ class Address(models.Model):
     def __str__(self):
         return f"{self.name} ({self.address_type})"
 
+
 # ─────────────────────────────
 # WISHLIST
 # ─────────────────────────────
 class Wishlist(models.Model):
-    auth0_user_id = models.CharField(
-        max_length=255,
-        db_index=True
-    )
-
+    auth0_user_id = models.CharField(max_length=255, db_index=True)
     product = models.ForeignKey(
         Product,
         on_delete=models.CASCADE,
         related_name="wishlisted_by",
         db_index=True
     )
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ("auth0_user_id", "product")
-        indexes = [
-            models.Index(fields=["auth0_user_id", "product"]),
-        ]
 
     def __str__(self):
         return f"{self.auth0_user_id} ❤️ {self.product.name}"
@@ -138,10 +128,7 @@ class Order(models.Model):
         ("cod", "Cash on Delivery"),
     ]
 
-    auth0_user_id = models.CharField(
-        max_length=255,
-        db_index=True
-    )
+    auth0_user_id = models.CharField(max_length=255, db_index=True)
 
     address = models.ForeignKey(
         Address,
@@ -150,10 +137,7 @@ class Order(models.Model):
         blank=True
     )
 
-    total_amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2
-    )
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
 
     payment_method = models.CharField(
         max_length=20,
@@ -161,26 +145,9 @@ class Order(models.Model):
         default="razorpay"
     )
 
-    # Razorpay fields
-    razorpay_order_id = models.CharField(
-        max_length=100,
-        null=True,
-        blank=True,
-        unique=True,
-        db_index=True
-    )
-
-    razorpay_payment_id = models.CharField(
-        max_length=100,
-        null=True,
-        blank=True
-    )
-
-    razorpay_signature = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True
-    )
+    razorpay_order_id = models.CharField(max_length=100, null=True, blank=True, unique=True)
+    razorpay_payment_id = models.CharField(max_length=100, null=True, blank=True)
+    razorpay_signature = models.CharField(max_length=255, null=True, blank=True)
 
     status = models.CharField(
         max_length=20,
