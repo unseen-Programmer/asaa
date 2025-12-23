@@ -6,30 +6,22 @@ import razorpay
 import hmac
 import hashlib
 import json
-from django.core.exceptions import PermissionDenied
 
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.db import transaction
 
-from .models import (
-    Product,
-    Address,
-    Wishlist,
-    Order,
-    OrderItem,
-)
-
+from .models import Product, Address, Wishlist, Order, OrderItem
 from .serializers import (
     ProductSerializer,
     AddressSerializer,
     WishlistSerializer,
     OrderSerializer,
 )
-
 from .permissions import IsAuthenticatedWithAuth0
 
 
@@ -40,9 +32,8 @@ razorpay_client = razorpay.Client(
     auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
 )
 
-
 # =================================================
-# 📍 ADDRESS (AUTH0 ONLY)
+# 📍 ADDRESS (LIST / CREATE)
 # =================================================
 class AddressView(generics.ListCreateAPIView):
     serializer_class = AddressSerializer
@@ -51,10 +42,39 @@ class AddressView(generics.ListCreateAPIView):
     def get_queryset(self):
         return Address.objects.filter(
             auth0_user_id=self.request.auth0_user_id
-        )
+        ).order_by("-created_at")
 
     def perform_create(self, serializer):
         serializer.save(auth0_user_id=self.request.auth0_user_id)
+
+
+# =================================================
+# 📍 ADDRESS (UPDATE / DELETE)
+# =================================================
+class AddressDetailView(APIView):
+    permission_classes = [IsAuthenticatedWithAuth0]
+
+    def get_object(self, pk, user_id):
+        address = Address.objects.filter(
+            id=pk,
+            auth0_user_id=user_id
+        ).first()
+
+        if not address:
+            raise PermissionDenied("Address not found")
+        return address
+
+    def put(self, request, pk):
+        address = self.get_object(pk, request.auth0_user_id)
+        serializer = AddressSerializer(address, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, pk):
+        address = self.get_object(pk, request.auth0_user_id)
+        address.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # =================================================
@@ -105,32 +125,27 @@ class WishlistView(APIView):
 
     def post(self, request):
         product_id = request.data.get("product_id")
-
         if not product_id:
-            return Response(
-                {"error": "product_id is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"error": "product_id required"}, status=400)
 
-        wishlist_item = Wishlist.objects.filter(
+        item = Wishlist.objects.filter(
             auth0_user_id=request.auth0_user_id,
-            product_id=product_id,
+            product_id=product_id
         ).first()
 
-        if wishlist_item:
-            wishlist_item.delete()
+        if item:
+            item.delete()
         else:
             Wishlist.objects.create(
                 auth0_user_id=request.auth0_user_id,
-                product_id=product_id,
+                product_id=product_id
             )
 
         wishlist = Wishlist.objects.filter(
             auth0_user_id=request.auth0_user_id
         ).select_related("product").prefetch_related("product__images")
 
-        serializer = WishlistSerializer(wishlist, many=True)
-        return Response(serializer.data)
+        return Response(WishlistSerializer(wishlist, many=True).data)
 
 
 # =================================================
@@ -146,14 +161,13 @@ class PlaceOrderView(APIView):
 
         if not items or not address_id:
             return Response(
-                {"error": "items and address_id are required"},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"error": "items and address_id required"},
+                status=400
             )
 
-        # 🔒 Ensure address belongs to user
         if not Address.objects.filter(
             id=address_id,
-            auth0_user_id=request.auth0_user_id,
+            auth0_user_id=request.auth0_user_id
         ).exists():
             raise PermissionDenied("Invalid address")
 
@@ -165,11 +179,8 @@ class PlaceOrderView(APIView):
         )
 
         total = 0
-
         for item in items:
-            product = Product.objects.select_for_update().get(
-                id=item["product_id"]
-            )
+            product = Product.objects.select_for_update().get(id=item["product_id"])
 
             if product.stock < item["quantity"]:
                 raise PermissionDenied("Insufficient stock")
@@ -189,8 +200,7 @@ class PlaceOrderView(APIView):
         order.total_amount = total
         order.save(update_fields=["total_amount"])
 
-        serializer = OrderSerializer(order)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(OrderSerializer(order).data, status=201)
 
 
 # =================================================
@@ -214,12 +224,8 @@ class RazorpayCreateOrderView(APIView):
 
     def post(self, request):
         amount = request.data.get("amount")
-
         if not amount:
-            return Response(
-                {"error": "amount is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"error": "amount required"}, status=400)
 
         amount_paise = int(float(amount) * 100)
 
@@ -253,7 +259,6 @@ class RazorpayVerifyPaymentView(APIView):
 
     def post(self, request):
         data = request.data
-
         try:
             razorpay_client.utility.verify_payment_signature({
                 "razorpay_order_id": data["razorpay_order_id"],
@@ -264,23 +269,18 @@ class RazorpayVerifyPaymentView(APIView):
             order = Order.objects.get(
                 razorpay_order_id=data["razorpay_order_id"]
             )
-
             order.razorpay_payment_id = data["razorpay_payment_id"]
             order.razorpay_signature = data["razorpay_signature"]
             order.status = "paid"
             order.save(update_fields=[
                 "razorpay_payment_id",
                 "razorpay_signature",
-                "status",
+                "status"
             ])
 
             return Response({"status": "success"})
-
         except Exception:
-            return Response(
-                {"status": "failed"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"status": "failed"}, status=400)
 
 
 # =================================================
@@ -290,30 +290,26 @@ class RazorpayVerifyPaymentView(APIView):
 class RazorpayWebhookView(View):
     def post(self, request):
         webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
-        received_signature = request.headers.get("X-Razorpay-Signature")
+        signature = request.headers.get("X-Razorpay-Signature")
         payload = request.body
 
-        expected_signature = hmac.new(
-            key=webhook_secret.encode(),
-            msg=payload,
-            digestmod=hashlib.sha256,
+        expected = hmac.new(
+            webhook_secret.encode(),
+            payload,
+            hashlib.sha256
         ).hexdigest()
 
-        if not hmac.compare_digest(expected_signature, received_signature):
+        if not hmac.compare_digest(expected, signature):
             return HttpResponse("Invalid signature", status=400)
 
         data = json.loads(payload)
-        event = data.get("event")
-
-        if event == "payment.captured":
+        if data.get("event") == "payment.captured":
             payment = data["payload"]["payment"]["entity"]
-            razorpay_order_id = payment["order_id"]
-
             Order.objects.filter(
-                razorpay_order_id=razorpay_order_id
+                razorpay_order_id=payment["order_id"]
             ).update(
                 status="paid",
-                razorpay_payment_id=payment["id"],
+                razorpay_payment_id=payment["id"]
             )
 
         return HttpResponse(status=200)
