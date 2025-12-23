@@ -67,22 +67,31 @@ class ProductImage(models.Model):
 # ADDRESS (Auth0 USER)
 # ─────────────────────────────
 class Address(models.Model):
-    auth0_user_id = models.CharField(
-        max_length=255,
-        db_index=True
+    ADDRESS_TYPE_CHOICES = (
+        ("home", "Home"),
+        ("work", "Work"),
     )
+
+    auth0_user_id = models.CharField(max_length=255, db_index=True)
 
     name = models.CharField(max_length=200)
     phone = models.CharField(max_length=20)
-    street = models.CharField(max_length=300)
-    city = models.CharField(max_length=100, db_index=True)
-    pincode = models.CharField(max_length=20, db_index=True)
 
+    street = models.CharField(max_length=300)
+    city = models.CharField(max_length=100)
+    pincode = models.CharField(max_length=20)
+
+    address_type = models.CharField(
+        max_length=10,
+        choices=ADDRESS_TYPE_CHOICES,
+        default="home"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name} - {self.city}"
-
+        return f"{self.name} ({self.address_type})"
 
 # ─────────────────────────────
 # WISHLIST
