@@ -13,14 +13,16 @@ SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-dev-key")
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS",
-    "localhost,127.0.0.1,asaa-0p6p.onrender.com"
-).split(",")
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "asaa-0p6p.onrender.com",
+]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://asaa-0p6p.onrender.com",
 ]
+
 
 # ---------------------------------------------------------
 # RAZORPAY
