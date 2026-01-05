@@ -32,6 +32,7 @@ razorpay_client = razorpay.Client(
     auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
 )
 
+
 # =================================================
 # 📍 ADDRESS (LIST / CREATE)
 # =================================================
@@ -175,12 +176,15 @@ class PlaceOrderView(APIView):
             auth0_user_id=request.auth0_user_id,
             address_id=address_id,
             total_amount=0,
+            payment_method="razorpay",
             status="pending",
         )
 
         total = 0
         for item in items:
-            product = Product.objects.select_for_update().get(id=item["product_id"])
+            product = Product.objects.select_for_update().get(
+                id=item["product_id"]
+            )
 
             if product.stock < item["quantity"]:
                 raise PermissionDenied("Insufficient stock")
@@ -200,34 +204,33 @@ class PlaceOrderView(APIView):
         order.total_amount = total
         order.save(update_fields=["total_amount"])
 
-        return Response(OrderSerializer(order).data, status=201)
+        return Response(
+            {"order_id": order.id, "total_amount": total},
+            status=201
+        )
 
 
 # =================================================
-# 📦 ORDER HISTORY
-# =================================================
-class OrderHistoryView(generics.ListAPIView):
-    serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticatedWithAuth0]
-
-    def get_queryset(self):
-        return Order.objects.filter(
-            auth0_user_id=self.request.auth0_user_id
-        ).prefetch_related("items__product", "items__product__images")
-
-
-# =================================================
-# 💳 RAZORPAY CREATE ORDER
+# 💳 CREATE RAZORPAY ORDER
 # =================================================
 class RazorpayCreateOrderView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
 
     def post(self, request):
-        amount = request.data.get("amount")
-        if not amount:
-            return Response({"error": "amount required"}, status=400)
+        order_id = request.data.get("order_id")
 
-        amount_paise = int(float(amount) * 100)
+        if not order_id:
+            return Response({"error": "order_id required"}, status=400)
+
+        order = Order.objects.filter(
+            id=order_id,
+            auth0_user_id=request.auth0_user_id
+        ).first()
+
+        if not order:
+            return Response({"error": "Order not found"}, status=404)
+
+        amount_paise = int(order.total_amount * 100)
 
         razorpay_order = razorpay_client.order.create({
             "amount": amount_paise,
@@ -235,30 +238,26 @@ class RazorpayCreateOrderView(APIView):
             "payment_capture": 1,
         })
 
-        order = Order.objects.create(
-            auth0_user_id=request.auth0_user_id,
-            total_amount=amount,
-            payment_method="razorpay",
-            razorpay_order_id=razorpay_order["id"],
-            status="pending",
-        )
+        order.razorpay_order_id = razorpay_order["id"]
+        order.save(update_fields=["razorpay_order_id"])
 
         return Response({
-            "order_id": razorpay_order["id"],
-            "amount": razorpay_order["amount"],
             "key": settings.RAZORPAY_KEY_ID,
-            "order_db_id": order.id,
+            "amount": amount_paise,
+            "currency": "INR",
+            "razorpay_order_id": razorpay_order["id"],
         })
 
 
 # =================================================
-# 💳 RAZORPAY VERIFY (FRONTEND)
+# ✅ VERIFY PAYMENT (FRONTEND CALLBACK)
 # =================================================
 class RazorpayVerifyPaymentView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
 
     def post(self, request):
         data = request.data
+
         try:
             razorpay_client.utility.verify_payment_signature({
                 "razorpay_order_id": data["razorpay_order_id"],
@@ -284,27 +283,39 @@ class RazorpayVerifyPaymentView(APIView):
 
 
 # =================================================
-# 🔐 RAZORPAY WEBHOOK (SOURCE OF TRUTH)
+# 🔐 RAZORPAY WEBHOOK (FIXED – NO 405)
 # =================================================
 @method_decorator(csrf_exempt, name="dispatch")
 class RazorpayWebhookView(View):
+
+    def get(self, request):
+        return HttpResponse(
+            "Razorpay webhook endpoint is live. Use POST requests only."
+        )
+
     def post(self, request):
         webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
+
+        if not webhook_secret:
+            return HttpResponse("Webhook secret not configured", status=500)
+
         signature = request.headers.get("X-Razorpay-Signature")
         payload = request.body
 
-        expected = hmac.new(
+        expected_signature = hmac.new(
             webhook_secret.encode(),
             payload,
             hashlib.sha256
         ).hexdigest()
 
-        if not hmac.compare_digest(expected, signature):
+        if not hmac.compare_digest(expected_signature, signature):
             return HttpResponse("Invalid signature", status=400)
 
         data = json.loads(payload)
+
         if data.get("event") == "payment.captured":
             payment = data["payload"]["payment"]["entity"]
+
             Order.objects.filter(
                 razorpay_order_id=payment["order_id"]
             ).update(
