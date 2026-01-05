@@ -211,6 +211,22 @@ class PlaceOrderView(APIView):
 
 
 # =================================================
+# 📦 ORDER HISTORY (⬅️ THIS WAS MISSING)
+# =================================================
+class OrderHistoryView(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticatedWithAuth0]
+
+    def get_queryset(self):
+        return Order.objects.filter(
+            auth0_user_id=self.request.auth0_user_id
+        ).prefetch_related(
+            "items__product",
+            "items__product__images"
+        )
+
+
+# =================================================
 # 💳 CREATE RAZORPAY ORDER
 # =================================================
 class RazorpayCreateOrderView(APIView):
@@ -283,7 +299,7 @@ class RazorpayVerifyPaymentView(APIView):
 
 
 # =================================================
-# 🔐 RAZORPAY WEBHOOK (FIXED – NO 405)
+# 🔐 RAZORPAY WEBHOOK
 # =================================================
 @method_decorator(csrf_exempt, name="dispatch")
 class RazorpayWebhookView(View):
