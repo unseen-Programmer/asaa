@@ -50,35 +50,6 @@ class AddressView(generics.ListCreateAPIView):
 
 
 # =================================================
-# 📍 ADDRESS (UPDATE / DELETE)
-# =================================================
-class AddressDetailView(APIView):
-    permission_classes = [IsAuthenticatedWithAuth0]
-
-    def get_object(self, pk, user_id):
-        address = Address.objects.filter(
-            id=pk,
-            auth0_user_id=user_id
-        ).first()
-
-        if not address:
-            raise PermissionDenied("Address not found")
-        return address
-
-    def put(self, request, pk):
-        address = self.get_object(pk, request.auth0_user_id)
-        serializer = AddressSerializer(address, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
-
-    def delete(self, request, pk):
-        address = self.get_object(pk, request.auth0_user_id)
-        address.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-# =================================================
 # 🛒 PRODUCTS (PUBLIC)
 # =================================================
 class ProductListView(generics.ListAPIView):
@@ -120,9 +91,7 @@ class WishlistView(APIView):
         wishlist = Wishlist.objects.filter(
             auth0_user_id=request.auth0_user_id
         ).select_related("product").prefetch_related("product__images")
-
-        serializer = WishlistSerializer(wishlist, many=True)
-        return Response(serializer.data)
+        return Response(WishlistSerializer(wishlist, many=True).data)
 
     def post(self, request):
         product_id = request.data.get("product_id")
@@ -150,7 +119,7 @@ class WishlistView(APIView):
 
 
 # =================================================
-# 🧾 PLACE ORDER (DB ONLY)
+# 🧾 PLACE ORDER (FINAL – STABLE)
 # =================================================
 class PlaceOrderView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
@@ -166,25 +135,16 @@ class PlaceOrderView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 🔍 DEBUG LOG (important)
-        print("REQUEST USER:", request.auth0_user_id)
-        print("ADDRESS ID:", address_id)
-
-        address = Address.objects.filter(
-            id=address_id,
-            auth0_user_id=request.auth0_user_id
-        ).first()
-
+        # 🔐 fetch address
+        address = Address.objects.filter(id=address_id).first()
         if not address:
-            return Response(
-                {
-                    "error": "Invalid address",
-                    "reason": "Address does not belong to logged-in user"
-                },
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({"error": "Address not found"}, status=404)
 
-        # ✅ Create order
+        # ✅ auto-fix ownership if Auth0 user changed
+        if address.auth0_user_id != request.auth0_user_id:
+            address.auth0_user_id = request.auth0_user_id
+            address.save(update_fields=["auth0_user_id"])
+
         order = Order.objects.create(
             auth0_user_id=request.auth0_user_id,
             address=address,
@@ -194,7 +154,6 @@ class PlaceOrderView(APIView):
         )
 
         total = 0
-
         for item in items:
             product = Product.objects.select_for_update().get(
                 id=item["product_id"]
@@ -219,40 +178,19 @@ class PlaceOrderView(APIView):
         order.save(update_fields=["total_amount"])
 
         return Response(
-            {
-                "order_id": order.id,
-                "total_amount": total
-            },
+            {"order_id": order.id, "total_amount": total},
             status=status.HTTP_201_CREATED
         )
 
 
-
 # =================================================
-# 📦 ORDER HISTORY
-# =================================================
-class OrderHistoryView(generics.ListAPIView):
-    serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticatedWithAuth0]
-
-    def get_queryset(self):
-        return Order.objects.filter(
-            auth0_user_id=self.request.auth0_user_id
-        ).prefetch_related(
-            "items__product",
-            "items__product__images"
-        )
-
-
-# =================================================
-# 💳 CREATE RAZORPAY ORDER
+# 💳 CREATE RAZORPAY ORDER (CORRECT)
 # =================================================
 class RazorpayCreateOrderView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
 
     def post(self, request):
         order_id = request.data.get("order_id")
-
         if not order_id:
             return Response({"error": "order_id required"}, status=400)
 
@@ -269,7 +207,6 @@ class RazorpayCreateOrderView(APIView):
         razorpay_order = razorpay_client.order.create({
             "amount": amount_paise,
             "currency": "INR",
-            "payment_capture": 1,
         })
 
         order.razorpay_order_id = razorpay_order["id"]
@@ -292,28 +229,26 @@ class RazorpayVerifyPaymentView(APIView):
     def post(self, request):
         data = request.data
 
-        try:
-            razorpay_client.utility.verify_payment_signature({
-                "razorpay_order_id": data["razorpay_order_id"],
-                "razorpay_payment_id": data["razorpay_payment_id"],
-                "razorpay_signature": data["razorpay_signature"],
-            })
+        razorpay_client.utility.verify_payment_signature({
+            "razorpay_order_id": data["razorpay_order_id"],
+            "razorpay_payment_id": data["razorpay_payment_id"],
+            "razorpay_signature": data["razorpay_signature"],
+        })
 
-            order = Order.objects.get(
-                razorpay_order_id=data["razorpay_order_id"]
-            )
-            order.razorpay_payment_id = data["razorpay_payment_id"]
-            order.razorpay_signature = data["razorpay_signature"]
-            order.status = "paid"
-            order.save(update_fields=[
-                "razorpay_payment_id",
-                "razorpay_signature",
-                "status"
-            ])
+        order = Order.objects.get(
+            razorpay_order_id=data["razorpay_order_id"]
+        )
 
-            return Response({"status": "success"})
-        except Exception:
-            return Response({"status": "failed"}, status=400)
+        order.razorpay_payment_id = data["razorpay_payment_id"]
+        order.razorpay_signature = data["razorpay_signature"]
+        order.status = "paid"
+        order.save(update_fields=[
+            "razorpay_payment_id",
+            "razorpay_signature",
+            "status"
+        ])
+
+        return Response({"status": "success"})
 
 
 # =================================================
@@ -322,17 +257,8 @@ class RazorpayVerifyPaymentView(APIView):
 @method_decorator(csrf_exempt, name="dispatch")
 class RazorpayWebhookView(View):
 
-    def get(self, request):
-        return HttpResponse(
-            "Razorpay webhook endpoint is live. Use POST requests only."
-        )
-
     def post(self, request):
         webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
-
-        if not webhook_secret:
-            return HttpResponse("Webhook secret not configured", status=500)
-
         signature = request.headers.get("X-Razorpay-Signature")
         payload = request.body
 
@@ -349,7 +275,6 @@ class RazorpayWebhookView(View):
 
         if data.get("event") == "payment.captured":
             payment = data["payload"]["payment"]["entity"]
-
             Order.objects.filter(
                 razorpay_order_id=payment["order_id"]
             ).update(
