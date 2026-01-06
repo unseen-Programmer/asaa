@@ -91,6 +91,7 @@ class WishlistView(APIView):
         wishlist = Wishlist.objects.filter(
             auth0_user_id=request.auth0_user_id
         ).select_related("product").prefetch_related("product__images")
+
         return Response(WishlistSerializer(wishlist, many=True).data)
 
     def post(self, request):
@@ -119,7 +120,7 @@ class WishlistView(APIView):
 
 
 # =================================================
-# 🧾 PLACE ORDER (FINAL – STABLE)
+# 🧾 PLACE ORDER (FINAL, STABLE)
 # =================================================
 class PlaceOrderView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
@@ -135,12 +136,11 @@ class PlaceOrderView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 🔐 fetch address
         address = Address.objects.filter(id=address_id).first()
         if not address:
             return Response({"error": "Address not found"}, status=404)
 
-        # ✅ auto-fix ownership if Auth0 user changed
+        # 🔐 Auto-fix ownership if Auth0 sub changed
         if address.auth0_user_id != request.auth0_user_id:
             address.auth0_user_id = request.auth0_user_id
             address.save(update_fields=["auth0_user_id"])
@@ -180,6 +180,22 @@ class PlaceOrderView(APIView):
         return Response(
             {"order_id": order.id, "total_amount": total},
             status=status.HTTP_201_CREATED
+        )
+
+
+# =================================================
+# 📦 ORDER HISTORY
+# =================================================
+class OrderHistoryView(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticatedWithAuth0]
+
+    def get_queryset(self):
+        return Order.objects.filter(
+            auth0_user_id=self.request.auth0_user_id
+        ).prefetch_related(
+            "items__product",
+            "items__product__images"
         )
 
 
