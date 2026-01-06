@@ -150,7 +150,7 @@ class WishlistView(APIView):
 
 
 # =================================================
-# 🧾 PLACE ORDER (WITH DEBUG)
+# 🧾 PLACE ORDER (DB ONLY)
 # =================================================
 class PlaceOrderView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
@@ -160,36 +160,41 @@ class PlaceOrderView(APIView):
         items = request.data.get("items")
         address_id = request.data.get("address_id")
 
-        print("DEBUG auth0_user_id:", request.auth0_user_id)
-        print("DEBUG address_id:", address_id)
-
-        address = Address.objects.filter(id=address_id).first()
-        print(
-            "DEBUG address.auth0_user_id:",
-            address.auth0_user_id if address else "ADDRESS NOT FOUND"
-        )
-
         if not items or not address_id:
             return Response(
                 {"error": "items and address_id required"},
-                status=400
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not Address.objects.filter(
+        # 🔍 DEBUG LOG (important)
+        print("REQUEST USER:", request.auth0_user_id)
+        print("ADDRESS ID:", address_id)
+
+        address = Address.objects.filter(
             id=address_id,
             auth0_user_id=request.auth0_user_id
-        ).exists():
-            raise PermissionDenied("Invalid address")
+        ).first()
 
+        if not address:
+            return Response(
+                {
+                    "error": "Invalid address",
+                    "reason": "Address does not belong to logged-in user"
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # ✅ Create order
         order = Order.objects.create(
             auth0_user_id=request.auth0_user_id,
-            address_id=address_id,
+            address=address,
             total_amount=0,
             payment_method="razorpay",
             status="pending",
         )
 
         total = 0
+
         for item in items:
             product = Product.objects.select_for_update().get(
                 id=item["product_id"]
@@ -214,9 +219,13 @@ class PlaceOrderView(APIView):
         order.save(update_fields=["total_amount"])
 
         return Response(
-            {"order_id": order.id, "total_amount": total},
-            status=201
+            {
+                "order_id": order.id,
+                "total_amount": total
+            },
+            status=status.HTTP_201_CREATED
         )
+
 
 
 # =================================================
