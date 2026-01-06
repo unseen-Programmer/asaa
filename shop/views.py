@@ -150,7 +150,7 @@ class WishlistView(APIView):
 
 
 # =================================================
-# 🧾 PLACE ORDER (DB ONLY)
+# 🧾 PLACE ORDER (WITH DEBUG)
 # =================================================
 class PlaceOrderView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
@@ -159,6 +159,15 @@ class PlaceOrderView(APIView):
     def post(self, request):
         items = request.data.get("items")
         address_id = request.data.get("address_id")
+
+        print("DEBUG auth0_user_id:", request.auth0_user_id)
+        print("DEBUG address_id:", address_id)
+
+        address = Address.objects.filter(id=address_id).first()
+        print(
+            "DEBUG address.auth0_user_id:",
+            address.auth0_user_id if address else "ADDRESS NOT FOUND"
+        )
 
         if not items or not address_id:
             return Response(
@@ -211,7 +220,7 @@ class PlaceOrderView(APIView):
 
 
 # =================================================
-# 📦 ORDER HISTORY (⬅️ THIS WAS MISSING)
+# 📦 ORDER HISTORY
 # =================================================
 class OrderHistoryView(generics.ListAPIView):
     serializer_class = OrderSerializer
@@ -266,7 +275,7 @@ class RazorpayCreateOrderView(APIView):
 
 
 # =================================================
-# ✅ VERIFY PAYMENT (FRONTEND CALLBACK)
+# ✅ VERIFY PAYMENT
 # =================================================
 class RazorpayVerifyPaymentView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
