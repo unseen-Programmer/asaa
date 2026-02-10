@@ -26,15 +26,19 @@ from .permissions import IsAuthenticatedWithAuth0
 
 
 # =================================================
-# 🔐 RAZORPAY CLIENT
+# 🔐 SAFE RAZORPAY CLIENT (NO CRASH)
 # =================================================
-razorpay_client = razorpay.Client(
-    auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
-)
+def get_razorpay_client():
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        return None
+
+    return razorpay.Client(
+        auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+    )
 
 
 # =================================================
-# 📍 ADDRESS (LIST / CREATE)
+# 📍 ADDRESS
 # =================================================
 class AddressView(generics.ListCreateAPIView):
     serializer_class = AddressSerializer
@@ -120,7 +124,7 @@ class WishlistView(APIView):
 
 
 # =================================================
-# 🧾 PLACE ORDER (FINAL, STABLE)
+# 🧾 PLACE ORDER
 # =================================================
 class PlaceOrderView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
@@ -140,7 +144,6 @@ class PlaceOrderView(APIView):
         if not address:
             return Response({"error": "Address not found"}, status=404)
 
-        # 🔐 Auto-fix ownership if Auth0 sub changed
         if address.auth0_user_id != request.auth0_user_id:
             address.auth0_user_id = request.auth0_user_id
             address.save(update_fields=["auth0_user_id"])
@@ -200,12 +203,19 @@ class OrderHistoryView(generics.ListAPIView):
 
 
 # =================================================
-# 💳 CREATE RAZORPAY ORDER (CORRECT)
+# 💳 CREATE RAZORPAY ORDER
 # =================================================
 class RazorpayCreateOrderView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
 
     def post(self, request):
+        client = get_razorpay_client()
+        if not client:
+            return Response(
+                {"error": "Razorpay not configured"},
+                status=503
+            )
+
         order_id = request.data.get("order_id")
         if not order_id:
             return Response({"error": "order_id required"}, status=400)
@@ -220,7 +230,7 @@ class RazorpayCreateOrderView(APIView):
 
         amount_paise = int(order.total_amount * 100)
 
-        razorpay_order = razorpay_client.order.create({
+        razorpay_order = client.order.create({
             "amount": amount_paise,
             "currency": "INR",
         })
@@ -243,9 +253,16 @@ class RazorpayVerifyPaymentView(APIView):
     permission_classes = [IsAuthenticatedWithAuth0]
 
     def post(self, request):
+        client = get_razorpay_client()
+        if not client:
+            return Response(
+                {"error": "Razorpay not configured"},
+                status=503
+            )
+
         data = request.data
 
-        razorpay_client.utility.verify_payment_signature({
+        client.utility.verify_payment_signature({
             "razorpay_order_id": data["razorpay_order_id"],
             "razorpay_payment_id": data["razorpay_payment_id"],
             "razorpay_signature": data["razorpay_signature"],
@@ -274,12 +291,14 @@ class RazorpayVerifyPaymentView(APIView):
 class RazorpayWebhookView(View):
 
     def post(self, request):
-        webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
+        if not settings.RAZORPAY_WEBHOOK_SECRET:
+            return HttpResponse(status=200)
+
         signature = request.headers.get("X-Razorpay-Signature")
         payload = request.body
 
         expected_signature = hmac.new(
-            webhook_secret.encode(),
+            settings.RAZORPAY_WEBHOOK_SECRET.encode(),
             payload,
             hashlib.sha256
         ).hexdigest()
