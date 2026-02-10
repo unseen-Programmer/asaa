@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import dj_database_url
 
 # ---------------------------------------------------------
 # BASE DIR
@@ -16,27 +17,12 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "asaa-0p6p.onrender.com",
+    "asaa-0bfp.onrender.com",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://asaa-0p6p.onrender.com",
+    "https://asaa-0bfp.onrender.com",
 ]
-
-
-# ---------------------------------------------------------
-# RAZORPAY
-# ---------------------------------------------------------
-RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
-RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
-RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET")
-
-# ---------------------------------------------------------
-# AUTH0 CONFIG
-# ---------------------------------------------------------
-AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
-AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
-AUTH0_ISSUER = f"https://{AUTH0_DOMAIN}/"
 
 # ---------------------------------------------------------
 # INSTALLED APPS
@@ -54,7 +40,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
 
-    # Cloudinary
     "cloudinary",
     "cloudinary_storage",
 
@@ -108,7 +93,6 @@ TEMPLATES = [
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
-    import dj_database_url
     DATABASES = {
         "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
@@ -121,7 +105,7 @@ else:
     }
 
 # ---------------------------------------------------------
-# PASSWORD VALIDATORS
+# PASSWORD VALIDATION
 # ---------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -139,7 +123,7 @@ USE_I18N = True
 USE_TZ = True
 
 # ---------------------------------------------------------
-# STATIC FILES (WHITENOISE)
+# STATIC FILES
 # ---------------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -169,20 +153,17 @@ CORS_ALLOW_CREDENTIALS = True
 # DJANGO REST FRAMEWORK
 # ---------------------------------------------------------
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "shop.authentication.Auth0JWTAuthentication",
-    ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.AllowAny",
     ),
 }
 
 # ---------------------------------------------------------
-# PROXY / HTTPS (RENDER FIX)
+# HTTPS FIX FOR RENDER
 # ---------------------------------------------------------
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # ---------------------------------------------------------
-# DEFAULT PRIMARY KEY
+# DEFAULT PK
 # ---------------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
